@@ -11,6 +11,7 @@
 
 // CUDA UTILS AND KERNEL WRAPPERS
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
+#define PI 3.14159265359f
 
 void check_cuda(cudaError_t result, char const* const func, const char* const file, int const line);
 
@@ -18,9 +19,14 @@ __global__ void debugKernel();
 
 __global__ void uvKernel(float* framebuffer, int width, int height, float time);
 
+__global__ void renderKernel(float* framebuffer, int width, int height, float time, float3 cameraPos);
+
+
 void debugKernelWrapper();
 
 void uvKernelWrapper(uint8_t* framebuffer, int width, int height, float time);
+void renderKernelWrapper(uint8_t* framebuffer, int width, int height, float time, float3 cameraPos);
+
 
 // PATH TRACING UTILS
 
@@ -33,7 +39,19 @@ struct Ray {
 	float3 direction;
 
 	__device__ Ray(float3 origin, float3 direction) : origin(origin), direction(direction) {}
+
+	__device__ float3 at(const float t);
 };
+
+struct Sphere
+{
+	float3 center;
+	float radius;
+
+	__host__ __device__ Sphere(float3 center, float radius) : center(center), radius(radius) {}
+};
+
+bool __device__ intersectSphere(const Ray& ray, const Sphere& sphere, float& t);
 
 
 // MESH UTILS
@@ -56,10 +74,20 @@ struct Mesh {
 
 void loadObj(const char* filename, Mesh& mesh, float scalefactor=1.0f);
 
+
+/*
+Offsets the position of all the vertices in the mesh by the given vector.
+*/
 void offsetMesh(Mesh& mesh, float3 offset);
 
+/*
+Scales the size of the mesh in each direction by the given vector.
+*/
 void scaleMesh(Mesh& mesh, float3 scale);
 
+/*
+Scales the size of the mesh in every direction by the given factor.
+*/
 void scaleMesh(Mesh& mesh, float scale);
 
 void computeAABB(Mesh& mesh);
@@ -134,3 +162,4 @@ inline __host__ __device__ float3 fminf(const float3& a, const float3& b) {
 inline __host__ __device__ float3 fmaxf(const float3& a, const float3& b) {
 	return make_float3(fmaxf(a.x, b.x), fmaxf(a.y, b.y), fmaxf(a.z, b.z));
 }
+

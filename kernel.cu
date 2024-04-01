@@ -55,14 +55,70 @@ __global__ void uvKernel(float* framebuffer, int width, int height, float time) 
 	}
 }
 
+__global__ void renderKernel(float* framebuffer, int width, int height, float time, float3 cameraPos) {
+
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+	int xStride = gridDim.x * blockDim.x;
+	int yStride = gridDim.y * blockDim.y;
+
+	Sphere sphere(make_float3(0.0f, 0.0f, -5.0f), 1.0f);
+
+
+	float aspectRatio = (float)width / height;
+	float fov = 30.0f;
+
+	
+
+
+
+	for (int i = y; i < height; i += yStride) {
+		for (int j = x; j < width; j += xStride) {
+			// Find pixel ray
+			float v = (float)(i+0.5f) / height;
+			float u = (float)(j+0.5f) / width;
+
+		    float3 rayDir = make_float3((-2.0f * u + 1.0f) * aspectRatio * tanf(fov / 2.0f), (2.0f * v-1.0f) * tanf(fov / 2.0f), -1.0f);
+
+			Ray ray(cameraPos, normalize(rayDir));
+
+
+
+			int pixelIndex = i * width * 4 + j * 4;
+
+			float3 color;
+			float t;
+
+			if (intersectSphere(ray, sphere, t)) {
+				float3 hitPoint = ray.at(t);
+				float3 normal = normalize(hitPoint - sphere.center);
+				color = 0.5f * make_float3(normal.x + 1.0f, normal.y + 1.0f, normal.z + 1.0f);
+			}
+			else {
+				float a = 0.5f * (ray.direction.y + 1.0f);
+				color = (1.0f - a) * make_float3(1.0f, 1.0f, 1.0f) + a * make_float3(0.5f, 0.7f, 1.0f);
+			}
+
+
+			framebuffer[pixelIndex] = color.x;
+			framebuffer[pixelIndex + 1] = color.y;
+			framebuffer[pixelIndex + 2] = color.z;
+			framebuffer[pixelIndex + 3] = 1.0f;
+
+		}
+	}
+
+}
+
 void debugKernelWrapper() {
 	debugKernel <<<2, 2 >> > ();
 	cudaDeviceSynchronize();
 }
 
 void uvKernelWrapper(uint8_t* framebuffer, int width, int height, float time) {
-	int xBlocks = 64;
-	int yBlocks = 64;
+	int xBlocks = 16;
+	int yBlocks = 16;
 	int xThreads = 32;
 	int yThreads = 32;
 	
@@ -82,8 +138,33 @@ void uvKernelWrapper(uint8_t* framebuffer, int width, int height, float time) {
 	cudaMemcpy(framebuffer, cudaIntFrameBuffer, sizeof(uint8_t) * width * height * 4, cudaMemcpyDeviceToHost);
 	cudaFree(cudaframebuffer);
 	cudaFree(cudaIntFrameBuffer);
-	//printf("Kernel finished\n");
 }
+
+void renderKernelWrapper(uint8_t* framebuffer, int width, int height, float time, float3 camerapos)
+{
+	int xBlocks = 16;
+	int yBlocks = 16;
+	int xThreads = 32;
+	int yThreads = 32;
+
+	dim3 blockSize(xBlocks, yBlocks);
+	dim3 gridSize(xThreads, yThreads);
+
+	float* cudaframebuffer;
+	uint8_t* cudaIntFrameBuffer;
+	checkCudaErrors(cudaMalloc((void**)&cudaframebuffer, sizeof(float) * width * height * 4));
+	checkCudaErrors(cudaMalloc((void**)&cudaIntFrameBuffer, sizeof(uint8_t) * width * height * 4));
+
+
+	renderKernel << < blockSize, gridSize >> > (cudaframebuffer, width, height, time, camerapos);
+	cudaDeviceSynchronize();
+	floatToUint8 << < blockSize, gridSize >> > (cudaframebuffer, cudaIntFrameBuffer, width, height);
+	cudaDeviceSynchronize();
+	cudaMemcpy(framebuffer, cudaIntFrameBuffer, sizeof(uint8_t) * width * height * 4, cudaMemcpyDeviceToHost);
+	cudaFree(cudaframebuffer);
+	cudaFree(cudaIntFrameBuffer);
+}
+
 
 void loadObj(const char* filename, Mesh& mesh, float scalefactor)
 {
@@ -163,4 +244,40 @@ void computeAABB(Mesh& mesh) {
 
 	mesh.AABB[0] = min;
 	mesh.AABB[1] = max;
+}
+
+bool __device__ intersectSphere(const Ray& ray, const Sphere& sphere, float& t) {
+	float3 oc = ray.origin - sphere.center;
+	float a = dot(ray.direction, ray.direction);
+	float b = 2.0f * dot(oc, ray.direction);
+	float c = dot(oc, oc) - sphere.radius * sphere.radius;
+	float discriminant = b * b - 4 * a * c;
+
+	if (discriminant < 0) {
+		return false;
+	}
+	else {
+		float t0 = (-b - sqrt(discriminant)) / (2.0f * a);
+		float t1 = (-b + sqrt(discriminant)) / (2.0f * a);
+
+		if (t0 > t1) {
+			float temp = t0;
+			t0 = t1;
+			t1 = temp;
+		}
+
+		if (t0 < 0) {
+			t0 = t1;
+			if (t0 < 0) {
+				return false;
+			}
+		}
+
+		t = t0;
+		return true;
+	}
+}
+__device__ float3 Ray::at(const float t)
+{
+	return origin + direction * t;
 }

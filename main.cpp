@@ -3,9 +3,9 @@
 #include <SFML/Graphics.hpp>
 
 #define WIDTH 800
-#define HEIGHT 800
-
-#define RENDER 0
+#define HEIGHT 600
+#define FRAME_LIMIT 60
+#define RENDER 1
 
 
 int main(int argc, char **argv) {
@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
    
     {
         sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "SFML works!");
+        window.setFramerateLimit(FRAME_LIMIT);
         sf::Texture texture;
         texture.create(WIDTH, HEIGHT);
 
@@ -26,6 +27,8 @@ int main(int argc, char **argv) {
         sf::Clock clock;
 
         sf::Uint8* intFrameBuffer = new sf::Uint8[WIDTH * HEIGHT * 4];
+        float3 cameraPos = make_float3(0.0f, 0.0f, 0.0f);
+        float speed = 0.05f;;
 
         while (window.isOpen())
         {
@@ -42,7 +45,7 @@ int main(int argc, char **argv) {
 
             sf::Uint32 time = clock.getElapsedTime().asMilliseconds();
             float timef = ((float)time) / 1000.0f;
-            uvKernelWrapper(intFrameBuffer, WIDTH, HEIGHT, timef);
+            renderKernelWrapper(intFrameBuffer, WIDTH, HEIGHT, timef, cameraPos);
 
             texture.update(intFrameBuffer);
             window.draw(sprite);
@@ -52,6 +55,32 @@ int main(int argc, char **argv) {
 
             printf("FPS: %f\n", 1000000.0f / (end - start));
             printf("Frame time (ms): %f\n", (float)(end - start) / 1000.0f);
+
+            // move the camera with the arrow keys
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+			{
+				cameraPos.x -= speed;
+			}
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+               {
+                cameraPos.x += speed;
+			}
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+            {
+                cameraPos.z -= speed;
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+			{
+				cameraPos.z += speed;
+			}
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+			{
+				cameraPos.y += speed;
+			}
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift))
+			{
+				cameraPos.y -= speed;
+			}
         }
     }
 
