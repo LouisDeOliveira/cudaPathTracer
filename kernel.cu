@@ -55,7 +55,7 @@ __global__ void uvKernel(float* framebuffer, int width, int height, float time) 
 	}
 }
 
-__global__ void renderKernel(float* framebuffer, int width, int height, float time, float3 cameraPos) {
+__global__ void SphereKernel(float* framebuffer, int width, int height, float time, float3 cameraPos, float3 cameradir) {
 
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -63,14 +63,18 @@ __global__ void renderKernel(float* framebuffer, int width, int height, float ti
 	int xStride = gridDim.x * blockDim.x;
 	int yStride = gridDim.y * blockDim.y;
 
-	Sphere sphere(make_float3(0.0f, 0.0f, -5.0f), 1.0f);
+	Sphere sphere(make_float3(0.0f*cosf(time), 0.0f*sinf(time), -5.0f), 1.0f);
 
 
 	float aspectRatio = (float)width / height;
 	float fov = 30.0f;
 
 	
+	Camera camera(make_float3(0.0f, 0.0f, 0.0f), make_float3(0.0f, 0.0f, -1.0f), make_float3(0.0f, 1.0f, 0.0f), 30.0f);
+	camera.position = cameraPos;
+	//cameradir.x += 0.1*cosf(time);
 
+	camera.setDirection(normalize(cameradir));
 
 
 	for (int i = y; i < height; i += yStride) {
@@ -79,9 +83,13 @@ __global__ void renderKernel(float* framebuffer, int width, int height, float ti
 			float v = (float)(i+0.5f) / height;
 			float u = (float)(j+0.5f) / width;
 
-		    float3 rayDir = make_float3((-2.0f * u + 1.0f) * aspectRatio * tanf(fov / 2.0f), (2.0f * v-1.0f) * tanf(fov / 2.0f), -1.0f);
+		    float3 rayDir = make_float3((-2.0f * u + 1.0f) * aspectRatio * tanf(fov / 2.0f), (2.0f * v-1.0f) * tanf(fov / 2.0f), -1.0f); // in cam coords
 
-			Ray ray(cameraPos, normalize(rayDir));
+			// Transform to world coords
+
+
+			//Ray ray(camera.position, normalize(camera.cameraToWorld(rayDir)));
+			Ray ray = camera.getRay(u, v, aspectRatio);
 
 
 
@@ -140,7 +148,7 @@ void uvKernelWrapper(uint8_t* framebuffer, int width, int height, float time) {
 	cudaFree(cudaIntFrameBuffer);
 }
 
-void renderKernelWrapper(uint8_t* framebuffer, int width, int height, float time, float3 camerapos)
+void SphereKernelWrapper(uint8_t* framebuffer, int width, int height, float time, float3 camerapos, float3 cameradir)
 {
 	int xBlocks = 16;
 	int yBlocks = 16;
@@ -156,7 +164,7 @@ void renderKernelWrapper(uint8_t* framebuffer, int width, int height, float time
 	checkCudaErrors(cudaMalloc((void**)&cudaIntFrameBuffer, sizeof(uint8_t) * width * height * 4));
 
 
-	renderKernel << < blockSize, gridSize >> > (cudaframebuffer, width, height, time, camerapos);
+	SphereKernel << < blockSize, gridSize >> > (cudaframebuffer, width, height, time, camerapos, cameradir);
 	cudaDeviceSynchronize();
 	floatToUint8 << < blockSize, gridSize >> > (cudaframebuffer, cudaIntFrameBuffer, width, height);
 	cudaDeviceSynchronize();
@@ -195,7 +203,7 @@ void loadObj(const char* filename, Mesh& mesh, float scalefactor)
 		else if (prefix == "f") {
 			int v1, v2, v3;
 			iss >> v1 >> v2 >> v3;
-			mesh.faces.push_back(make_float3(v1 - 1, v2 - 1, v3 - 1));
+			mesh.faces.push_back(make_int3(v1 - 1, v2 - 1, v3 - 1));
 		}
 		else if (prefix == "vn") {
 			float x, y, z;
@@ -219,19 +227,26 @@ void offsetMesh(Mesh& mesh, float3 offset) {
 	for (int i = 0; i < mesh.vertices.size(); i++) {
 		mesh.vertices[i] = mesh.vertices[i] + offset;
 	}
+	mesh.AABB[0] = mesh.AABB[0] + offset;
+	mesh.AABB[1] = mesh.AABB[1] + offset;
 }
 
 void scaleMesh(Mesh& mesh, float3 scale) {
 	for (int i = 0; i < mesh.vertices.size(); i++) {
 		mesh.vertices[i] = mesh.vertices[i] * scale;
 	}
+	mesh.AABB[0] = mesh.AABB[0] * scale;
+	mesh.AABB[1] = mesh.AABB[1] * scale;
 }
 
 void scaleMesh(Mesh& mesh, float scale) {
 	for (int i = 0; i < mesh.vertices.size(); i++) {
 		mesh.vertices[i] = mesh.vertices[i] * scale;
 	}
+	mesh.AABB[0] = mesh.AABB[0] * scale;
+	mesh.AABB[1] = mesh.AABB[1] * scale;
 }
+
 
 void computeAABB(Mesh& mesh) {
 	float3 min = make_float3(FLT_MAX, FLT_MAX, FLT_MAX);
@@ -280,4 +295,11 @@ bool __device__ intersectSphere(const Ray& ray, const Sphere& sphere, float& t) 
 __device__ float3 Ray::at(const float t)
 {
 	return origin + direction * t;
+}
+
+__device__ Ray Camera::getRay(float u, float v, float aspectRatio) {
+	float3 rayDir = make_float3((-2.0f * u + 1.0f) * aspectRatio * tanf(fov / 2.0f), (2.0f * v - 1.0f) * tanf(fov / 2.0f), -1.0f); // in cam coords
+	// Transform to world coords
+	Ray ray(position, normalize(cameraToWorld(rayDir)));
+	return ray;
 }
