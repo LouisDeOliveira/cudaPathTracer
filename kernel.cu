@@ -63,17 +63,14 @@ __global__ void SphereKernel(float* framebuffer, int width, int height, float ti
 	int xStride = gridDim.x * blockDim.x;
 	int yStride = gridDim.y * blockDim.y;
 
-	Sphere sphere(make_float3(0.0f*cosf(time), 0.0f*sinf(time), -5.0f), 1.0f);
+	Sphere sphere(make_float3(0.5f*cosf(time), 0.5f*sinf(time), -5.0f), 1.0f);
 
 
 	float aspectRatio = (float)width / height;
 	float fov = 30.0f;
 
 	
-	Camera camera(make_float3(0.0f, 0.0f, 0.0f), make_float3(0.0f, 0.0f, -1.0f), make_float3(0.0f, 1.0f, 0.0f), 30.0f);
-	camera.position = cameraPos;
-	//cameradir.x += 0.1*cosf(time);
-
+	Camera camera(cameraPos, make_float3(0.0f, 0.0f, -1.0f), make_float3(0.0f, 1.0f, 0.0f), 30.0f, width, height);
 	camera.setDirection(normalize(cameradir));
 
 
@@ -83,13 +80,14 @@ __global__ void SphereKernel(float* framebuffer, int width, int height, float ti
 			float v = (float)(i+0.5f) / height;
 			float u = (float)(j+0.5f) / width;
 
-		    float3 rayDir = make_float3((-2.0f * u + 1.0f) * aspectRatio * tanf(fov / 2.0f), (2.0f * v-1.0f) * tanf(fov / 2.0f), -1.0f); // in cam coords
+		    //float3 rayDir = make_float3((-2.0f * u + 1.0f) * aspectRatio * tanf(fov / 2.0f), (2.0f * v-1.0f) * tanf(fov / 2.0f), -1.0f); // in cam coords
 
 			// Transform to world coords
 
+			/*Ray ray(camera.position, normalize(rayDir));*/
 
 			//Ray ray(camera.position, normalize(camera.cameraToWorld(rayDir)));
-			Ray ray = camera.getRay(u, v, aspectRatio);
+			Ray ray = camera.getRay(u, v);
 
 
 
@@ -291,15 +289,4 @@ bool __device__ intersectSphere(const Ray& ray, const Sphere& sphere, float& t) 
 		t = t0;
 		return true;
 	}
-}
-__device__ float3 Ray::at(const float t)
-{
-	return origin + direction * t;
-}
-
-__device__ Ray Camera::getRay(float u, float v, float aspectRatio) {
-	float3 rayDir = make_float3((-2.0f * u + 1.0f) * aspectRatio * tanf(fov / 2.0f), (2.0f * v - 1.0f) * tanf(fov / 2.0f), -1.0f); // in cam coords
-	// Transform to world coords
-	Ray ray(position, normalize(cameraToWorld(rayDir)));
-	return ray;
 }

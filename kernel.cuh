@@ -113,32 +113,59 @@ struct Ray {
 
 	__device__ Ray(float3 origin, float3 direction) : origin(origin), direction(direction) {}
 
-	__device__ float3 at(const float t);
+	__device__ float3 at(const float t)
+	{
+		return origin + direction * t;
+	}
 };
 
 struct Camera {
 	float3 position;
+	float3 lookAt;
 	float3 direction;
 	float3 up;
 	float3 right;
+	float3 worldUp;
 	float fov;
+	int width;
+	int height;
 
-	__device__ Camera(float3 position, float3 direction, float3 up, float fov) : position(position), direction(direction), up(up), fov(fov) {
-		right = normalize(cross(direction, up));
+	__device__ Camera(float3 position, float3 lookAt, float3 worldUp, float fov, int width, int height) : position(position), lookAt(lookAt), worldUp(worldUp), fov(fov), width(width), height(height) {
+		direction = normalize(lookAt - position);
+		right = normalize(cross(direction, worldUp));
+		up = normalize(cross(right, direction));
 	}
 
-	__device__ Ray getRay(float u, float v, float aspectRatio);
+	__device__ Ray getRay(float u, float v) {
+		float3 center = position;
+		float h = tan(fov * PI / 360.0f);
+		float aspectRatio = (float)width / (float)height;
+		float viewportHeight = 2.0f * h;
+		float viewportWidth = aspectRatio * viewportHeight;
+		float3 viewportU = right * viewportWidth;
+		float3 viewportV = up * viewportHeight;
+		float3 viewportOrigin = center - viewportU * 0.5f - viewportV * 0.5f - direction;
+		return Ray(position, normalize(viewportOrigin + viewportU * (1-u) + viewportV * (1.0f-v) - position));
+
+	}
 
 	__device__ void setDirection(float3 newDirection) {
 		direction = newDirection;
-		right = normalize(cross(direction, up));
+		right = normalize(cross(direction, worldUp));
+		up = normalize(cross(right, direction));
 	}
 
-	__device__ float3 cameraToWorld(float3 v) {
-		
-
+	__device__ void setPosition(float3 newPosition) {
+		position = newPosition;
 	}
 
+	__device__ void setLookAt(float3 newLookAt) {
+		lookAt = newLookAt;
+		direction = normalize(lookAt - position);
+		right = normalize(cross(direction, worldUp));
+		up = normalize(cross(right, direction));
+	}
+	
 
 
 

@@ -6,7 +6,7 @@
 #define HEIGHT 600
 #define FRAME_LIMIT 60
 #define RENDER 1
-#define VERBOSE 0
+#define VERBOSE 1
 
 float3 rotate(const float3 v, const float3 axis, float angle)
 {
@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
         sf::Clock clock;
 
         sf::Uint8* intFrameBuffer = new sf::Uint8[WIDTH * HEIGHT * 4];
+        float3 worldUp = make_float3(0.0f, 1.0f, 0.0f);
         float3 cameraPos = make_float3(0.0f, 0.0f, 0.0f);
         float3 cameraDir = make_float3(0.0f, 0.0f, 1.0f);
         float speed = 0.05f;;
@@ -95,13 +96,32 @@ int main(int argc, char **argv) {
            			}
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
             {
-                cameraPos = cameraPos + cross(cameraDir, make_float3(0.0f, 1.0f, 0.0f)) * speed;
+                cameraPos = cameraPos - cross(cameraDir, worldUp) * speed;
 			}
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q))
             {
-                cameraPos = cameraPos - cross(cameraDir, make_float3(0.0f, 1.0f, 0.0f)) * speed;
+                cameraPos = cameraPos + cross(cameraDir, worldUp) * speed;
             }
-            // rotate the camera with i j k 
+
+            // rotate the camera with the i , j, k, l, u , o keys
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::I))
+			{
+				cameraDir = rotate(cameraDir, cross(cameraDir, worldUp), -0.01f);
+			}
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::K))
+            {
+                cameraDir = rotate(cameraDir, cross(cameraDir, worldUp), 0.01f);
+			}
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::J))
+	        {
+				cameraDir = rotate(cameraDir, worldUp, 0.01f);
+            }
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::L))
+            {
+                cameraDir = rotate(cameraDir, worldUp, -0.01f);
+				
+            }
+
 
             //std::cout << "Camera position: " << cameraPos.x << " " << cameraPos.y << " " << cameraPos.z << std::endl;
             //std::cout << "Camera direction: " << cameraDir.x << " " << cameraDir.y << " " << cameraDir.z << std::endl;
@@ -113,13 +133,13 @@ int main(int argc, char **argv) {
         }
     }
 
-    //Mesh mesh;
-    //loadObj("D:/Programmation/C++/cudaPT/data/objs/bunny.obj", mesh);
-    //std::cout << "Loaded bunny.obj" << std::endl;
-    //std::cout << "Number of vertices: " << mesh.vertices.size() << std::endl;
-    //std::cout << "Number of faces: " << mesh.faces.size() << std::endl;
-    //std::cout << "AABox min: " << mesh.AABB[0].x << " " << mesh.AABB[0].y << " " << mesh.AABB[0].z << std::endl;
-    //std::cout << "AABox max: " << mesh.AABB[1].x << " " << mesh.AABB[1].y << " " << mesh.AABB[1].z << std::endl;
+    Mesh mesh;
+    loadObj("D:/Programmation/C++/cudaPT/data/objs/bunny.obj", mesh);
+    std::cout << "Loaded bunny.obj" << std::endl;
+    std::cout << "Number of vertices: " << mesh.vertices.size() << std::endl;
+    std::cout << "Number of faces: " << mesh.faces.size() << std::endl;
+    std::cout << "AABox min: " << mesh.AABB[0].x << " " << mesh.AABB[0].y << " " << mesh.AABB[0].z << std::endl;
+    std::cout << "AABox max: " << mesh.AABB[1].x << " " << mesh.AABB[1].y << " " << mesh.AABB[1].z << std::endl;
     
 	return 0;
 }
