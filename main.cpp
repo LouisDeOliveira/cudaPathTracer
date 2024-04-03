@@ -4,8 +4,8 @@
 
 #define WIDTH 800
 #define HEIGHT 600
-#define FRAME_LIMIT 60
-#define RENDER 1
+#define FRAME_LIMIT 144
+#define RENDER 0
 #define VERBOSE 1
 
 float3 rotate(const float3 v, const float3 axis, float angle)
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     if (RENDER)
    
     {
-        sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "SFML works!");
+        sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "CUDA Path Tracer");
         window.setFramerateLimit(FRAME_LIMIT);
         sf::Texture texture;
         texture.create(WIDTH, HEIGHT);
@@ -133,13 +133,27 @@ int main(int argc, char **argv) {
         }
     }
 
-    Mesh mesh;
+    /*Mesh mesh;
     loadObj("D:/Programmation/C++/cudaPT/data/objs/bunny.obj", mesh);
     std::cout << "Loaded bunny.obj" << std::endl;
     std::cout << "Number of vertices: " << mesh.vertices.size() << std::endl;
     std::cout << "Number of faces: " << mesh.faces.size() << std::endl;
     std::cout << "AABox min: " << mesh.AABB[0].x << " " << mesh.AABB[0].y << " " << mesh.AABB[0].z << std::endl;
-    std::cout << "AABox max: " << mesh.AABB[1].x << " " << mesh.AABB[1].y << " " << mesh.AABB[1].z << std::endl;
+    std::cout << "AABox max: " << mesh.AABB[1].x << " " << mesh.AABB[1].y << " " << mesh.AABB[1].z << std::endl;*/
     
+    Matrix3x3 R = makeRotation(make_float3(1, 1, 0));
+    float3 t = make_float3(1, 0, 0);
+    float3 x = make_float3(1, 0, 0);
+    printf("R: \n");
+    printf(R);
+    printf("t: \n");
+	printf(t);
+    Matrix4x4 M = makeTransform(R, t);
+    printf("M: \n");
+    printf(M);
+    printf("M * x: \n");
+    printf(M * x);
+    printf("R * x + t: \n");
+    printf(R * x + t);
 	return 0;
 }
