@@ -3,6 +3,9 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 //#include "math_utils.cuh"
+#include <math.h>
+#include <float.h>
+#include <stdint.h>
 #include <stdio.h> // printf
 #include <iostream> // std::cerr, std::cout
 #include <fstream> // std::ifstream

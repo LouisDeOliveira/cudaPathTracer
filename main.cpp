@@ -5,7 +5,7 @@
 #define WIDTH 800
 #define HEIGHT 600
 #define FRAME_LIMIT 144
-#define RENDER 0
+#define RENDER 1
 #define VERBOSE 1
 
 float3 rotate(const float3 v, const float3 axis, float angle)
