@@ -94,12 +94,11 @@ __global__ void SphereKernel(float* framebuffer, int width, int height, float ti
 			int pixelIndex = i * width * 4 + j * 4;
 
 			float3 color;
-			float t;
+			HitRecord record;
 
-			if (intersectSphere(ray, sphere, t)) {
-				float3 hitPoint = ray.at(t);
-				float3 normal = normalize(hitPoint - sphere.center);
-				color = 0.5f * make_float3(normal.x + 1.0f, normal.y + 1.0f, normal.z + 1.0f);
+			if (intersectSphere(ray, sphere, record)) {
+
+				color = 0.5f * make_float3(record.normal.x + 1.0f, record.normal.y + 1.0f, record.normal.z + 1.0f);
 			}
 			else {
 				float a = 0.5f * (ray.direction.y + 1.0f);
@@ -116,6 +115,7 @@ __global__ void SphereKernel(float* framebuffer, int width, int height, float ti
 	}
 
 }
+
 
 void debugKernelWrapper() {
 	debugKernel <<<2, 2 >> > ();
@@ -259,7 +259,7 @@ void computeAABB(Mesh& mesh) {
 	mesh.AABB[1] = max;
 }
 
-bool __device__ intersectSphere(const Ray& ray, const Sphere& sphere, float& t) {
+bool __device__ intersectSphere(const Ray& ray, const Sphere& sphere, HitRecord& record) {
 	float3 oc = ray.origin - sphere.center;
 	float a = dot(ray.direction, ray.direction);
 	float b = 2.0f * dot(oc, ray.direction);
@@ -286,7 +286,60 @@ bool __device__ intersectSphere(const Ray& ray, const Sphere& sphere, float& t) 
 			}
 		}
 
-		t = t0;
+		record.t = t0;
+		record.point= ray.at(t0);
+		record.normal = normalize(record.point - sphere.center);
 		return true;
 	}
 }
+
+bool __device__ intersectTriangle(const Ray& ray, const float3& vertex0, const float3& vertex1, const float3& vertex2, HitRecord& record){
+	float3 edge1 = vertex1 - vertex0;
+    float3 edge2 = vertex2 - vertex0;
+
+    // Calculate the determinant
+    float3 h = cross(ray.direction, edge2);
+    float det = dot(edge1, h);
+
+    // If the determinant is near zero, the ray is parallel to the triangle
+    if (fabs(det) < 1e-5) {
+        return false;
+    }
+
+    float invDet = 1.0f / det;
+
+    // Calculate distance from vertex0 to ray origin
+    float3 s = ray.origin - vertex0;
+
+    // Calculate u parameter and test bounds
+    float u = dot(s, h) * invDet;
+    if (u < 0.0f || u > 1.0f) {
+        return false;
+    }
+
+    // Calculate v parameter and test bounds
+    float3 q = cross(s, edge1);
+    float v = dot(ray.direction, q) * invDet;
+    if (v < 0.0f || u + v > 1.0f) {
+        return false;
+    }
+
+    // Calculate t to find out where the intersection point is on the line
+    float t = dot(edge2, q) * invDet;
+
+    // If t is greater than EPSILON, ray intersects the triangle
+    if (t > 1e-5) {
+        record.t = t;
+        record.point = ray.origin + ray.direction * t;
+        record.normal = cross(edge1, edge2);
+        return true;
+    }
+
+    // No intersection
+    return false;
+}
+
+
+
+
+

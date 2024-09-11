@@ -369,10 +369,17 @@ struct Ray {
 
 	__host__ __device__ Ray(float3 origin, float3 direction) : origin(origin), direction(direction) {}
 
-	__host__ __device__ float3 at(const float t)
+	__host__ __device__ float3 at(const float t) const
 	{
 		return origin + direction * t;
 	}
+
+};
+
+struct HitRecord {
+	float3 point;
+	float3 normal;
+	float t;
 };
 
 struct Camera {
@@ -432,7 +439,7 @@ struct Sphere
 	__host__ __device__ Sphere(float3 center, float radius) : center(center), radius(radius) {}
 };
 
-bool __device__ intersectSphere(const Ray& ray, const Sphere& sphere, float& t);
+bool __device__ intersectSphere(const Ray& ray, const Sphere& sphere, HitRecord& record);
 
 struct SimpleBRDF {
 	float roughness;
@@ -460,10 +467,12 @@ struct Mesh {
 	float3 AABB[2];
 };
 
+bool __device__ intersectTriangle(const Ray& ray, const float3& edge1, const float3& edge2, HitRecord& record);
+
 void loadObj(const char* filename, Mesh& mesh, float scalefactor=1.0f);
 
 
-/*
+/*float& t
 Offsets the position of all the vertices in the mesh by the given vector.
 */
 void offsetMesh(Mesh& mesh, float3 offset);
