@@ -29,10 +29,6 @@ FetchContent_Declare(
   # tags like 'vX.X' corresponding to releases
 )
 
-
-
-
-set(IMGUI_DIR ${imgui_SOURCE_DIR})
 # ImGui-SFML
 set(IMGUI_DIR ${imgui_SOURCE_DIR})
 option(IMGUI_SFML_IMGUI_DEMO "Build imgui_demo.cpp" ON)
@@ -40,7 +36,7 @@ option(IMGUI_SFML_IMGUI_DEMO "Build imgui_demo.cpp" ON)
 FetchContent_MakeAvailable(imgui-sfml)
 
 
-add_library(cudalib kernel.cu kernel.cuh math_utils.cuh)
+add_library(cudalib kernel.cu kernel.cuh)
 
 target_compile_features(cudalib PUBLIC cxx_std_11)
 
