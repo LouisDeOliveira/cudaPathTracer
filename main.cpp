@@ -1,12 +1,14 @@
 #include "kernel.cuh"
 #include <iostream>
 #include <SFML/Graphics.hpp>
+#include <imgui.h>
+#include <imgui-SFML.h>
 
 #define WIDTH 800
 #define HEIGHT 600
 #define FRAME_LIMIT 144
 #define RENDER 1
-#define VERBOSE 1
+#define VERBOSE 0
 
 float3 rotate(const float3 v, const float3 axis, float angle)
 {
@@ -44,11 +46,15 @@ int main(int argc, char **argv) {
     {
         sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "CUDA Path Tracer");
         window.setFramerateLimit(FRAME_LIMIT);
+        
+        ImGui::SFML::Init(window);
+        
         sf::Texture texture;
         texture.create(WIDTH, HEIGHT);
 
         sf::Sprite sprite(texture);
         sf::Clock clock;
+        sf::Clock timeClock;
 
         sf::Uint8* intFrameBuffer = new sf::Uint8[WIDTH * HEIGHT * 4];
         float3 worldUp = make_float3(0.0f, 1.0f, 0.0f);
@@ -61,29 +67,49 @@ int main(int argc, char **argv) {
             // compute FPS
             // start the clock
             sf::Uint64 start = clock.getElapsedTime().asMicroseconds();
+            sf::Uint64 timeStart = timeClock.getElapsedTime().asMicroseconds();
 
             sf::Event event;
             while (window.pollEvent(event))
             {
+                ImGui::SFML::ProcessEvent(window, event);
                 if (event.type == sf::Event::Closed)
                     window.close();
             }
 
-            sf::Uint32 time = clock.getElapsedTime().asMilliseconds();
-            float timef = ((float)time) / 1000.0f;
+
+            sf::Uint32 time = timeClock.getElapsedTime().asMilliseconds();
+            float timef = ((float)time) / 1000.0f; //time as float to be used as a kind of uniform
+            
             SphereKernelWrapper(intFrameBuffer, WIDTH, HEIGHT, timef, cameraPos, cameraDir);
+
+            sf::Uint64 end = timeClock.getElapsedTime().asMicroseconds();
+            
+            ImGui::SFML::Update(window, clock.restart());
+
+            ImGui::ShowDemoWindow();
+
+            ImGui::Begin("Hello, world!");
+            ImGui::Button("Look at this pretty button");
+            ImGui::End();
 
             texture.update(intFrameBuffer);
             window.draw(sprite);
+            ImGui::SFML::Render(window);
             window.display();
 
-            sf::Uint64 end = clock.getElapsedTime().asMicroseconds();
+
+
 
             if (VERBOSE)
             {
-                printf("FPS: %f\n", 1000000.0f / (end - start));
-                printf("Frame time (ms): %f\n", (float)(end - start) / 1000.0f);
+                printf("\r FPS: %f", 1000000.0f / (end - start));
+                fflush(stdout);
+                // printf("Frame time (ms): %f\n", (float)(end - start) / 1000.0f);
             }
+
+
+            //TODO: Move input logic to separate func, maybe make a class for the rendering context.
 
             // move the camera forward and backward with z and s
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Z))
@@ -131,6 +157,8 @@ int main(int argc, char **argv) {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 				window.close();
         }
+
+        ImGui::SFML::Shutdown();
     }
 
     /*Mesh mesh;
