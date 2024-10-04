@@ -40,23 +40,27 @@ int main(int argc, char **argv) {
 	std::cout << "Hello, World!" << std::endl;
 
 	//debugKernelWrapper();
+    int height = HEIGHT;
+    int width = WIDTH;
 
     if (RENDER)
    
     {
-        sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "CUDA Path Tracer");
+        sf::RenderWindow window(sf::VideoMode(width, height), "CUDA Path Tracer");
         window.setFramerateLimit(FRAME_LIMIT);
         
         ImGui::SFML::Init(window);
         
         sf::Texture texture;
-        texture.create(WIDTH, HEIGHT);
+        texture.create(width, height);
 
         sf::Sprite sprite(texture);
         sf::Clock clock;
         sf::Clock timeClock;
 
-        sf::Uint8* intFrameBuffer = new sf::Uint8[WIDTH * HEIGHT * 4];
+        sf::Uint8* intFrameBuffer = new sf::Uint8[width * height * 4];
+
+        //TODO: maybe refactor so that Z is world up?
         float3 worldUp = make_float3(0.0f, 1.0f, 0.0f);
         float3 cameraPos = make_float3(0.0f, 0.0f, 0.0f);
         float3 cameraDir = make_float3(0.0f, 0.0f, 1.0f);
@@ -75,13 +79,33 @@ int main(int argc, char **argv) {
                 ImGui::SFML::ProcessEvent(window, event);
                 if (event.type == sf::Event::Closed)
                     window.close();
+
+                //handle resizing without deformation
+                // catch the resize events
+                if (event.type == sf::Event::Resized)
+                {
+                    // reallocate a frame buffer
+                    width = (int)event.size.width;
+                    height = (int)event.size.height;
+                    // update the view to the new size of the window
+                    sf::FloatRect visibleArea(0, 0, event.size.width, event.size.height);
+                    window.setView(sf::View(visibleArea));
+                    sf::Uint8* newFB = new sf::Uint8[width*height*4];
+                    delete[] intFrameBuffer;
+                    intFrameBuffer = newFB;
+                
+
+                    texture.create(width,height);
+                    sprite = sf::Sprite(texture);
+                    std::cout << "current size " << height << " " << width << std::endl;
+                }
             }
 
 
             sf::Uint32 time = timeClock.getElapsedTime().asMilliseconds();
             float timef = ((float)time) / 1000.0f; //time as float to be used as a kind of uniform
             
-            SphereKernelWrapper(intFrameBuffer, WIDTH, HEIGHT, timef, cameraPos, cameraDir);
+            SphereKernelWrapper(intFrameBuffer, width, height, 0.0f, cameraPos, cameraDir);
 
             sf::Uint64 end = timeClock.getElapsedTime().asMicroseconds();
             
@@ -183,5 +207,9 @@ int main(int argc, char **argv) {
     printf(M * x);
     printf("R * x + t: \n");
     printf(R * x + t);
+    printf("R * R^T: \n");
+    printf(R * transpose(R));
+    printf("R norm: \n");
+    printf("%f\n", norm(R));
 	return 0;
 }
