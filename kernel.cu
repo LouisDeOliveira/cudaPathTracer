@@ -63,7 +63,7 @@ __global__ void SphereKernel(float* framebuffer, int width, int height, float ti
 	int xStride = gridDim.x * blockDim.x;
 	int yStride = gridDim.y * blockDim.y;
 
-	Sphere sphere(make_float3(0.5f*cosf(time), 0.5f*sinf(time), -5.0f), 1.0f);
+	Sphere sphere(make_float3(0.0f, 0.5f*sinf(time), -5.0f), 1.0f);
 
 
 	float aspectRatio = (float)width / height;

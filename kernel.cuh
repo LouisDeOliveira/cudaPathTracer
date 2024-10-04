@@ -187,7 +187,7 @@ struct Matrix3x3 {
 	float3 r2;
 
 	__host__ __device__ Matrix3x3(float3 r0, float3 r1, float3 r2) : r0(r0), r1(r1), r2(r2) {}
-
+	
 	__host__ __device__ static Matrix3x3 fromColumns(float3 c0, float3 c1, float3 c2) {
 		return Matrix3x3(make_float3(c0.x, c1.x, c2.x), make_float3(c0.y, c1.y, c2.y), make_float3(c0.z, c1.z, c2.z));
 	}
@@ -237,9 +237,18 @@ inline __host__ __device__ Matrix3x3 transpose(const Matrix3x3& m) {
 	return Matrix3x3(make_float3(m.r0.x, m.r1.x, m.r2.x), make_float3(m.r0.y, m.r1.y, m.r2.y), make_float3(m.r0.z, m.r1.z, m.r2.z));
 }
 
+inline __host__ __device__ float trace(const Matrix3x3& m){
+	return m.r0.x + m.r1.y + m.r2.z ;
+}
+
+inline __host__ __device__ float norm(const Matrix3x3& m){
+	return sqrtf(trace(m*transpose(m)));
+}
+
 inline __host__ __device__ Matrix3x3 inverse(const Matrix3x3& m) {
 	float det = determinant(m);
-	if (det == 0.0f) {
+	if (det <= 1e-6f) {
+		std::cerr << "Couldn't inverse Matrix!! Determinant is 0." << std::endl;
 		return Matrix3x3(make_float3(0.0f, 0.0f, 0.0f), make_float3(0.0f, 0.0f, 0.0f), make_float3(0.0f, 0.0f, 0.0f));
 	}
 	float invDet = 1.0f / det;
@@ -257,6 +266,7 @@ inline __host__ __device__ Matrix3x3 makeRotation(float3 eulerAngles) {
 	return Rroll * Rpitch * Ryaw;
 }
 
+// TODO: add quaternion logic?
 
 inline void printf(Matrix3x3 m)
 {
@@ -280,7 +290,6 @@ struct Matrix4x4 {
 	__host__ __device__ static Matrix4x4 Identity() {
 		return Matrix4x4(make_float4(1.0f, 0.0f, 0.0f, 0.0f), make_float4(0.0f, 1.0f, 0.0f, 0.0f), make_float4(0.0f, 0.0f, 1.0f, 0.0f), make_float4(0.0f, 0.0f, 0.0f, 1.0f));
 	}
-
 
 };
 
@@ -330,12 +339,23 @@ inline __host__ __device__ Matrix4x4 operator-(const Matrix4x4& a) {
 	return Matrix4x4(-a.r0, -a.r1, -a.r2, -a.r3);
 }
 
+
 inline __host__ __device__ Matrix4x4 transpose(const Matrix4x4& m) {
 	return Matrix4x4(make_float4(m.r0.x, m.r1.x, m.r2.x, m.r3.x), make_float4(m.r0.y, m.r1.y, m.r2.y, m.r3.y), make_float4(m.r0.z, m.r1.z, m.r2.z, m.r3.z), make_float4(m.r0.w, m.r1.w, m.r2.w, m.r3.w));
 }
 
-inline __host__ __device__ bool isTransform(const Matrix4x4& m) {
-	return m.r0.w == 0.0f && m.r1.w == 0.0f && m.r2.w == 0.0f && m.r3.w == 1.0f;
+inline __host__ __device__ float trace(const Matrix4x4& m){
+	return m.r0.x + m.r1.y + m.r2.z + m.r3.w;
+}
+
+inline __host__ __device__ float norm(const Matrix4x4& m){
+	return sqrtf(trace(m*transpose(m)));
+}
+
+inline __host__ __device__ bool isValidTransform(const Matrix4x4& m) {
+	bool lastRow = (m.r0.w == 0.0f && m.r1.w == 0.0f && m.r2.w == 0.0f && m.r3.w == 1.0f);
+	//TODO: add check of valid rotation
+	return lastRow;
 }
 
 inline __host__ __device__ Matrix3x3 extractR(const Matrix4x4& m) {
